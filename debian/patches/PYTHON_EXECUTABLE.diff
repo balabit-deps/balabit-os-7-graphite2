@@ -1,0 +1,132 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 3466c5fc..9d73860f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,6 +1,7 @@
+ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.0 FATAL_ERROR)
+ cmake_policy(SET CMP0012 NEW)
+ include(TestBigEndian)
++include(FindPythonInterp)
+ 
+ project(graphite2)
+ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
+diff --git a/Graphite.cmake b/Graphite.cmake
+index 4ccf202c..1816329f 100644
+--- a/Graphite.cmake
++++ b/Graphite.cmake
+@@ -84,8 +84,8 @@ function(fonttest TESTNAME FONTFILE)
+             set_property(TEST ${TESTNAME} APPEND PROPERTY ENVIRONMENT "ASAN_SYMBOLIZER_PATH=${ASAN_SYMBOLIZER}")
+         endif (GRAPHITE2_ASAN)
+         add_test(NAME ${TESTNAME}Output COMMAND ${CMAKE_COMMAND} -E compare_files ${PROJECT_BINARY_DIR}/${TESTNAME}.log ${PROJECT_SOURCE_DIR}/standards/${TESTNAME}${PLATFORM_TEST_SUFFIX}.log)
+-        if (NOT GRAPHITE2_NTRACING)
+-            add_test(NAME ${TESTNAME}Debug COMMAND python ${PROJECT_SOURCE_DIR}/jsoncmp ${PROJECT_BINARY_DIR}/${TESTNAME}.json ${PROJECT_SOURCE_DIR}/standards/${TESTNAME}.json)
++        if ((NOT GRAPHITE2_NTRACING) AND PYTHONINTERP_FOUND)
++            add_test(NAME ${TESTNAME}Debug COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/jsoncmp ${PROJECT_BINARY_DIR}/${TESTNAME}.json ${PROJECT_SOURCE_DIR}/standards/${TESTNAME}.json)
+             set_tests_properties(${TESTNAME}Debug  PROPERTIES DEPENDS ${TESTNAME})
+         endif (NOT GRAPHITE2_NTRACING)
+         set_tests_properties(${TESTNAME}Output PROPERTIES DEPENDS ${TESTNAME})
+@@ -113,7 +113,7 @@ function(cmptest TESTNAME FONTFILE TEXTFILE)
+         set(PLATFORM_TEST_SUFFIX ${CMAKE_SYSTEM_NAME})
+     endif (EXISTS ${PROJECT_SOURCE_DIR}/standards/${TESTNAME}${CMAKE_SYSTEM_NAME}.json)
+     if ((NOT GRAPHITE2_NFILEFACE) AND ((NOT GRAPHITE2_ASAN) OR CMAKE_COMPILER_IS_GNUCXX))
+-        add_test(NAME ${TESTNAME} COMMAND python ${PROJECT_SOURCE_DIR}/fnttxtrender --graphite_library=$<TARGET_FILE:graphite2> -t ${PROJECT_SOURCE_DIR}/texts/${TEXTFILE} -o ${PROJECT_BINARY_DIR}/${TESTNAME}.json -c ${PROJECT_SOURCE_DIR}/standards/${TESTNAME}${PLATFORM_TEST_SUFFIX}.json ${ARGN} ${PROJECT_SOURCE_DIR}/fonts/${FONTFILE})
++        add_test(NAME ${TESTNAME} COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/fnttxtrender --graphite_library=$<TARGET_FILE:graphite2> -t ${PROJECT_SOURCE_DIR}/texts/${TEXTFILE} -o ${PROJECT_BINARY_DIR}/${TESTNAME}.json -c ${PROJECT_SOURCE_DIR}/standards/${TESTNAME}${PLATFORM_TEST_SUFFIX}.json ${ARGN} ${PROJECT_SOURCE_DIR}/fonts/${FONTFILE})
+         if (GRAPHITE2_ASAN)
+             set_property(TEST ${TESTNAME} APPEND 
+                     PROPERTY ENVIRONMENT "ASAN_SYMBOLIZER_PATH=${ASAN_SYMBOLIZER}"
+diff --git a/doc/building.txt b/doc/building.txt
+index a704ea07..9c4f26f1 100644
+--- a/doc/building.txt
++++ b/doc/building.txt
+@@ -175,9 +175,8 @@ fuzztest may result in problems.
+ There are some hard build dependencies:
+ 
+ python::
+-    To run the make test and make fuzztest, the build system requires 
+-    python v2.6 or later. Currently python 3 is not supported, however porting
+-    using 2to3 is straightforward. 
++    To run the make test and make fuzztest, the build system requires
++    python v2.6 or later.
+ 
+ Other configuration related dependencies:
+ 
+diff --git a/tests/corrupt.py b/tests/corrupt.py
+index 0aafb1f5..8a869cac 100755
+--- a/tests/corrupt.py
++++ b/tests/corrupt.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ import optparse, os, shutil, sys
+ 
+ def revert(path):
+diff --git a/tests/defuzz b/tests/defuzz
+index 91c6ca23..67c03252 100755
+--- a/tests/defuzz
++++ b/tests/defuzz
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ '''
+ Clean log file output from the fuzztest test harness.  This tool collapses
+ duplicate outputs into a single copy preceded by all the fuzz lines that 
+diff --git a/tests/fnttxtrender b/tests/fnttxtrender
+index 8e90313d..ddd03070 100755
+--- a/tests/fnttxtrender
++++ b/tests/fnttxtrender
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ 
+ from __future__ import print_function, unicode_literals
+ try:
+diff --git a/tests/fuzzbidi b/tests/fuzzbidi
+index 21b49133..b577185a 100755
+--- a/tests/fuzzbidi
++++ b/tests/fuzzbidi
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ 
+ import graphite, random, resource, sys, os, time, itertools, math
+ from multiprocessing import Pool, current_process
+diff --git a/tests/fuzztest b/tests/fuzztest
+index 65d8ee55..9882f095 100755
+--- a/tests/fuzztest
++++ b/tests/fuzztest
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ '''
+ A multiprocess fuzz test framework that generates corrupt fonts to run a user 
+ supplied test harness against.  This will check each byte in every table of a 
+diff --git a/tests/hbspeeds b/tests/hbspeeds
+index 6d9843ea..2db6d0d7 100755
+--- a/tests/hbspeeds
++++ b/tests/hbspeeds
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ 
+ """Tool to read callgrind output and return the net cost of the first call to a given function"""
+ 
+diff --git a/tests/jsoncmp b/tests/jsoncmp
+index 7979c4b5..b57679ea 100755
+--- a/tests/jsoncmp
++++ b/tests/jsoncmp
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ from __future__ import print_function, unicode_literals
+ import sys, json, operator, re
+ 
+diff --git a/tests/trace2svg b/tests/trace2svg
+index 534c9d16..22cf83ab 100755
+--- a/tests/trace2svg
++++ b/tests/trace2svg
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/env python
+ 
+ from fontTools import ttLib
+ from fontTools.pens.basePen import BasePen
